@@ -77,7 +77,7 @@ exports.forgotPassword = catchAsyncErrors(async(req, res, next) => {
         return next(new ErrorHandler(error.message, 500));
     }
 });
-// Reset Password => /api/v1/password/reset/:token
+// Change Password => /api/v1/password/reset/:token
 exports.resetPassword = catchAsyncErrors(async(req, res, next) => {
     //Hash URL token
     const resetPasswordToken = crypto
@@ -98,7 +98,7 @@ exports.resetPassword = catchAsyncErrors(async(req, res, next) => {
         );
     }
     if (req.body.password !== req.body.confirmPassword) {
-        return next(new ErrorHandler('Password does not match', 400));
+        return next(new ErrorHandler('Passwords do not match', 400));
     }
     // Setup new password
     user.password = req.body.password;
@@ -108,6 +108,28 @@ exports.resetPassword = catchAsyncErrors(async(req, res, next) => {
 
     await user.save();
 
+    sendToken(user, 200, res);
+});
+//Get currently logged in user details => /api/v1/me
+exports.getUserProfile = catchAsyncErrors(async(req, res, next) => {
+    const user = await User.findById(req.user.id);
+    res.status(200).json({
+        success: true,
+        user,
+    });
+});
+
+//Update /Change password => /api/v1/password/update
+exports.updatePassword = catchAsyncErrors(async(req, res, next) => {
+    const user = await User.findById(req.user.id).select('+password');
+
+    //Check previous user password
+    const isMatched = await user.comparePassword(req.body.oldPassword);
+    if (!isMatched) {
+        return next(new ErrorHandler('Old password is incorrect'));
+    }
+    user.password = req.body.password;
+    await user.save();
     sendToken(user, 200, res);
 });
 
